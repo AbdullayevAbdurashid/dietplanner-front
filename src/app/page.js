@@ -1,113 +1,229 @@
-import Image from 'next/image'
+"use client";
+import React, { useState, useEffect } from "react";
+import DailyDiet from "./dietOverview";
+import axios from "axios";
 
-export default function Home() {
+const DietPlanner = () => {
+  const initialFormData = {
+    user: "",
+    dietaryPreference: "",
+    healthGoal: "",
+    numDays: 1,
+    allergies: [],
+    budgetConstraint: "",
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
+  const [generatedDiet, setGeneratedDiet] = useState("");
+  const [currentDay, setCurrentDay] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [dayData, setDayData] = useState([]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      [name]: value,
+    }));
+  };
+  const handleNextDay = async () => {
+    setLoading(true);
+    setCurrentDay((prevDay) => Math.min(formData.numDays, prevDay + 1));
+
+    try {
+      const response = await axios.post(
+        `http://217.18.63.178:3000/getDay/${currentDay + 1}`,
+        formData
+      );
+      setDayData(response.data.diet);
+    } catch (error) {
+      console.error("Error fetching daily diet:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Load data from local storage if available
+    const savedData = JSON.parse(localStorage.getItem("dietPlannerData"));
+    if (savedData) {
+      setFormData(savedData);
+    }
+
+    // Fetch initial diet overview
+  }, []);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+
+    // Save data to local storage
+    localStorage.setItem("dietPlannerData", JSON.stringify(formData));
+
+    // Send data to the server to generate the diet overview
+    try {
+      const response = await axios.post(
+        "http://217.18.63.178:3000/getOverview",
+        formData
+      );
+      setGeneratedDiet(response.data.overview);
+      setCurrentDay(1);
+    } catch (error) {
+      console.error("Error generating diet overview:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePreviousDay = () => {
+    setCurrentDay((prevDay) => Math.max(1, prevDay - 1));
+  };
+
+  const fetchDietOverview = async () => {
+    setLoading(true);
+
+    try {
+      const response = await axios.post(
+        "http://217.18.63.178:3000/getOverview",
+        formData
+      );
+      setGeneratedDiet(response.data.overview);
+      setCurrentDay(1);
+    } catch (error) {
+      console.error("Error generating diet overview:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold mb-4">HealthBuddy Diet Planner</h1>
+      <form onSubmit={handleSubmit} className="mb-8">
+        <div className="mb-4">
+          <label htmlFor="user" className="block font-bold mb-2">
+            User Name:
+          </label>
+          <input
+            type="text"
+            id="user"
+            name="user"
+            value={formData.user}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border rounded"
+          />
         </div>
+        <div className="mb-4">
+          <label htmlFor="dietaryPreference" className="block font-bold mb-2">
+            Dietary Preference:
+          </label>
+          <input
+            type="text"
+            id="dietaryPreference"
+            name="dietaryPreference"
+            value={formData.dietaryPreference}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="healthGoal" className="block font-bold mb-2">
+            Health Goal:
+          </label>
+          <input
+            type="text"
+            id="healthGoal"
+            name="healthGoal"
+            value={formData.healthGoal}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="numDays" className="block font-bold mb-2">
+            Number of Days:
+          </label>
+          <input
+            type="number"
+            id="numDays"
+            name="numDays"
+            value={formData.numDays}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="allergies" className="block font-bold mb-2">
+            Allergies (separated by commas):
+          </label>
+          <input
+            type="text"
+            id="allergies"
+            name="allergies"
+            value={formData.allergies.join(", ")}
+            onChange={(e) => {
+              const allergies = e.target.value.split(", ");
+              setFormData((prevFormData) => ({
+                ...prevFormData,
+                allergies,
+              }));
+            }}
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="budgetConstraint" className="block font-bold mb-2">
+            Budget Constraint:
+          </label>
+          <input
+            type="number"
+            id="budgetConstraint"
+            name="budgetConstraint"
+            value={formData.budgetConstraint}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        <button
+          type="submit"
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+          disabled={loading}
+        >
+          Generate Diet Plan
+        </button>
+      </form>
+      {loading && (
+        <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-opacity-75 bg-gray-300">
+          <div className="text-lg font-bold">Generating Diet Plan...</div>
+        </div>
+      )}
+      {generatedDiet && (
+        <div className="border rounded p-4">{generatedDiet}</div>
+      )}
+
+      {dayData && <DailyDiet dietDetails={dayData}></DailyDiet>}
+      <div className="mt-4">
+        <button
+          onClick={handlePreviousDay}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mr-2"
+          disabled={currentDay === 1}
+        >
+          Previous Day
+        </button>
+        <button
+          onClick={handleNextDay}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+          disabled={currentDay === formData.numDays}
+        >
+          Next Day
+        </button>
       </div>
+    </div>
+  );
+};
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
-}
+export default DietPlanner;
